@@ -1,0 +1,17 @@
+Opcões Rede
+------------
+- Rede convolucional pré-treinada e treinar rede densa
+
+- Criar e treinar rede convulional do zero
+
+
+
+Opcões Inputs
+------------
+- Duas imagens para perspectiva
+
+- Uma imagem + Profundidade
+
+
+- Usar ou não posições angulares do robô como entradas intermediárias da rede densa
+

@@ -1,0 +1,134 @@
+#resnet_hae3.py - testado em Colab com TF2
+import keras
+from keras.datasets import cifar10
+from keras.models import Model
+from keras.layers import Dense, Conv2D, BatchNormalization, Activation
+from keras.layers import GlobalAveragePooling2D, Input, Flatten
+from keras.regularizers import l2
+from keras.optimizers import Adam
+from keras.activations import relu
+from keras.callbacks import ReduceLROnPlateau
+from keras.preprocessing.image import ImageDataGenerator
+import numpy as np
+from inspect import currentframe, getframeinfo
+import os
+import sys
+from keras.callbacks import LearningRateScheduler
+
+nomeprog="resnet_hae3"
+
+def resnet_layer(inputs, num_filters=16, kernel_size=3,
+                 strides=1, activation='relu', batch_normalization=True):
+  x = Conv2D(num_filters, kernel_size=kernel_size, strides=strides,
+             padding='same', kernel_initializer='he_normal',
+             kernel_regularizer=l2(1e-4))(inputs)
+  if batch_normalization: x = BatchNormalization()(x)
+  if activation is not None: x = Activation(activation)(x)
+  return x
+
+def lr_schedule(epoch):
+  lr = 1e-3
+  if epoch > 180:   lr *= 0.5e-3
+  elif epoch > 160: lr *= 1e-3
+  elif epoch > 120: lr *= 1e-2
+  elif epoch > 80:  lr *= 1e-1
+  print('Learning rate: ', lr)
+  return lr
+
+batch_size = 32; num_classes = 10; epochs = 200
+nl, nc = 32,32
+(ax, ay), (qx, qy) = cifar10.load_data()
+ax = ax.reshape(ax.shape[0], nl, nc, 3)
+qx = qx.reshape(qx.shape[0], nl, nc, 3)
+input_shape = (nl, nc, 3)
+
+ax = ax.astype('float32')
+qx = qx.astype('float32')
+ax /= 255 #0 a 1
+qx /= 255 #0 a 1
+ax -= 0.5 #-0.5 a +0.5
+qx -= 0.5 #-0.5 a +0.5
+ay = keras.utils.to_categorical(ay, num_classes)
+qy = keras.utils.to_categorical(qy, num_classes)
+
+inputs = Input(shape=input_shape)
+x = resnet_layer(inputs=inputs)
+
+num_filters = 16
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=1)
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=1)
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=1)
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+num_filters *= 2
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=2)
+
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = resnet_layer(inputs=x, num_filters=num_filters, kernel_size=1,
+                 strides=2, activation=None, batch_normalization=False)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=1)
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=1)
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+num_filters *= 2
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=2)
+
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = resnet_layer(inputs=x, num_filters=num_filters, kernel_size=1,
+                 strides=2, activation=None, batch_normalization=False)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=1)
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+y = resnet_layer(inputs=x, num_filters=num_filters, strides=1)
+y = resnet_layer(inputs=y, num_filters=num_filters, activation=None)
+x = keras.layers.add([x, y]); x = Activation('relu')(x)
+
+x = GlobalAveragePooling2D()(x)
+y = Flatten()(x)
+outputs = Dense(num_classes, activation='softmax', kernel_initializer='he_normal')(y)
+
+model = Model(inputs=inputs, outputs=outputs)
+
+from keras.utils import plot_model
+plot_model(model, to_file=nomeprog+'.png', show_shapes=True)
+model.summary()
+
+opt=Adam()
+model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=['accuracy'])
+
+lr_scheduler = LearningRateScheduler(lr_schedule)
+
+lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1), cooldown=0,
+                               patience=5, min_lr=0.5e-6)
+
+callbacks = [lr_reducer, lr_scheduler]
+
+datagen = ImageDataGenerator(width_shift_range=0.1, height_shift_range=0.1,
+  fill_mode='nearest', horizontal_flip=True)
+
+datagen.fit(ax)
+model.fit(datagen.flow(ax, ay, batch_size=batch_size),
+          epochs=epochs, verbose=2, workers=4, validation_data=(qx, qy),
+          callbacks=callbacks)
+
+score = model.evaluate(qx, qy, verbose=0)
+print('Test loss:', score[0])
+print('Test accuracy:', score[1])
+
+model.save(nomeprog+'.h5')

@@ -1,0 +1,4 @@
+Arquivo "renderer.py" line 988:
+
+elif isinstance(primitive.material, SpecularGlossinessMaterial):
+#              -----------

@@ -1,0 +1,9 @@
+pip install urdfpy==0.0.22
+
+pip install trimesh==3.7.13
+
+
+
+https://trimsh.org/trimesh.collision.html#trimesh.collision.CollisionManager
+
+https://github.com/BerkeleyAutomation/python-fcl

@@ -1,0 +1,18 @@
+Modificar arquivo: "pyglet.platform.py"
+---------------------------------------
+
+#    def make_uncurrent(self):
+#        import pyglet
+#        pyglet.gl.xlib.glx.glXMakeContextCurrent(self._window.context.x_display, 0, 0, None)
+    def make_uncurrent(self):
+        try:
+            import pyglet.gl.xlib
+            pyglet.gl.xlib.glx.glXMakeContextCurrent(self._window.context.x_display, 0, 0, None)
+        except:
+            pass
+
+
+
+----------------------------------------------------------
+
+
