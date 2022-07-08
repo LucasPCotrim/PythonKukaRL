@@ -3,11 +3,11 @@
 #------------------------------- IMPORTS -------------------------------------#
 # Custom imports
 from src import StableBaselines as SB
-from src import MarkovDecisionProcess as MDP
 
 from time import time
+import csv
 from datetime import date
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, A2C, SAC
 
 #-------------------------- GLOBAL VARIABLES ---------------------------------#
 
@@ -26,25 +26,26 @@ from stable_baselines3 import PPO
 # num_obstacles: Number of obstacles in the environment.
 # num_timesteps: Number of Timesteps to train the model.
 # num_envs: Number of vectorized Environments to use during training.
-# num_steps_per_env: Number of steps per environment for rollouts.
 # n_eval_episodes: Number of complete episodes to simulate during evaluation.
 # num_episodes_for_success_rate: Number of episodes used to calculate success_rate.
 # eval_freq: Evaluate the model every eval_freq number of timesteps during training.
 # print_eval_results: Whether or not to print evaluation results
 # save_gif: Whether or not to save a gif of the trained agent
 # print_success_rate: Whether or not to calculate and print success_rate.
-def train_PPO_model(task_name,
-                    action_space_type,
-                    num_obstacles,
-                    num_timesteps,
-                    num_envs,
-                    num_steps_per_env,
-                    eval_freq,
-                    n_eval_episodes,
-                    num_episodes_for_success_rate,
-                    print_eval_results=False,
-                    save_gif=False,
-                    print_success_rate=False):
+def train_model(task_name,
+                algorithm_name,
+                action_space_type,
+                num_obstacles,
+                num_timesteps,
+                gamma,
+                bacth_size,
+                num_envs,
+                eval_freq,
+                n_eval_episodes,
+                num_episodes_for_success_rate,
+                print_eval_results=False,
+                save_gif=False,
+                print_success_rate=False):
     
     # Task Parameters
     task_parameters = SB.EV.TaskParameters(task_name=task_name, N_obstacles=num_obstacles, action_space_type = action_space_type)
@@ -69,14 +70,29 @@ def train_PPO_model(task_name,
                        vf=[256, 128])]
     )
     # Create the model
-    model = PPO("MultiInputPolicy",
-                stable_baselines_env_vectorized,
-                n_steps = num_steps_per_env,
-                batch_size = 256,
-                gamma=0.95,
-                policy_kwargs=policy_kwargs,
-                use_sde = False,
-                verbose=1)
+    if (algorithm_name == 'PPO'):
+        model = PPO("MultiInputPolicy",
+                    stable_baselines_env_vectorized,
+                    batch_size=bacth_size,
+                    gamma=gamma,
+                    policy_kwargs=policy_kwargs,
+                    use_sde = False,
+                    verbose=1)
+    elif (algorithm_name == 'A2C'):
+        model = A2C("MultiInputPolicy",
+                    stable_baselines_env_vectorized,
+                    gamma=gamma,
+                    policy_kwargs=policy_kwargs,
+                    use_sde = False,
+                    verbose=1)
+    elif (algorithm_name == 'SAC'):
+        model = SAC("MultiInputPolicy",
+                    stable_baselines_env_vectorized,
+                    batch_size=bacth_size,
+                    gamma=gamma,
+                    policy_kwargs=policy_kwargs,
+                    use_sde = False,
+                    verbose=1)
     # Learn
     start_time = time()
     model.learn(total_timesteps=num_timesteps, callback=eval_callback)
@@ -95,6 +111,9 @@ def train_PPO_model(task_name,
     if (print_success_rate):
         success_rate = SB.calculate_success_rate(model, eval_env, num_episodes_for_success_rate)
         print ('Success rate = ' + str(success_rate))
+        with open('success_rates.csv', "a") as csv_file:
+            writer = csv.writer(csv_file, delimiter=',')
+            writer.writerow([model_name,str(success_rate)])
         
     # ----------------------------------------------------------------------
     
