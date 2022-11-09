@@ -732,15 +732,15 @@ class Environment:
   def step(self, s, a):
       
     if (self.task_parameters.task_name == 'positioning'):
-      r, next_state, terminal, status = self.step_positioning(s,a)
+      r, next_state, terminal, info = self.step_positioning(s,a)
         
     elif (self.task_parameters.task_name == 'pick_and_place'):
-      r, next_state, terminal, status = self.step_pick_and_place(s,a)
+      r, next_state, terminal, info = self.step_pick_and_place(s,a)
         
     else:
       raise Exception('Invalid Task Name!')
     
-    return r, next_state, terminal, status
+    return r, next_state, terminal, info
   
   
   
